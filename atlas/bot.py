@@ -72,7 +72,17 @@ def main():
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
 
     logger.info("Atlas is running.")
-    app.run_polling()
+
+    port = int(os.environ.get("PORT", 8443))
+    external_url = os.environ["RENDER_EXTERNAL_URL"]
+    webhook_path = token
+
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=port,
+        url_path=webhook_path,
+        webhook_url=f"{external_url}/{webhook_path}",
+    )
 
 
 if __name__ == "__main__":
