@@ -11,6 +11,8 @@ Every function name/signature below matches the old SQLite version exactly,
 so nothing in ai_engine.py, tools.py, bot.py, or scheduler.py needs to change.
 """
 
+from __future__ import annotations
+
 import os
 import json
 from datetime import datetime, timezone
@@ -19,7 +21,9 @@ from contextlib import contextmanager
 import psycopg2
 import psycopg2.extras
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable is required to use atlas.memory")
 
 
 def init_db():
