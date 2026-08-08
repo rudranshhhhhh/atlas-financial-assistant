@@ -9,6 +9,7 @@ what happens next. No slash commands are registered on purpose.
 import logging
 import os
 
+from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 

@@ -11,6 +11,8 @@ Every function name/signature below matches the old SQLite version exactly,
 so nothing in ai_engine.py, tools.py, bot.py, or scheduler.py needs to change.
 """
 
+from __future__ import annotations
+
 import os
 import json
 from datetime import datetime, timezone
@@ -19,7 +21,9 @@ from contextlib import contextmanager
 import psycopg2
 import psycopg2.extras
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable is required to use atlas.memory")
 
 
 def init_db():
@@ -38,7 +42,7 @@ def init_db():
                 CREATE TABLE IF NOT EXISTS messages (
                     id            SERIAL PRIMARY KEY,
                     user_id       BIGINT,
-                    role          TEXT,
+                    role          TEXT,       -- 'user' | 'assistant' | 'tool'
                     content       TEXT,
                     created_at    TEXT
                 );
@@ -68,6 +72,8 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# ---------- users ----------
+
 def get_or_create_user(user_id: int, name: str = "") -> dict:
     with _connect() as conn:
         with conn.cursor() as cur:
@@ -90,6 +96,7 @@ def mark_onboarded(user_id: int):
 
 
 def save_fact(user_id: int, key: str, value: str):
+    """Persist a small durable fact about the user, e.g. risk_tolerance: 'conservative'."""
     with _connect() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT facts_json FROM users WHERE user_id = %s", (user_id,))
@@ -110,6 +117,8 @@ def get_facts(user_id: int) -> dict:
             return json.loads(row["facts_json"]) if row else {}
 
 
+# ---------- conversation history ----------
+
 def add_message(user_id: int, role: str, content: str):
     with _connect() as conn:
         with conn.cursor() as cur:
@@ -120,6 +129,7 @@ def add_message(user_id: int, role: str, content: str):
 
 
 def get_recent_messages(user_id: int, limit: int = 20) -> list[dict]:
+    """Returns the last `limit` messages, oldest first, ready to feed into the LLM."""
     with _connect() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -129,6 +139,8 @@ def get_recent_messages(user_id: int, limit: int = 20) -> list[dict]:
             rows = cur.fetchall()
     return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]
 
+
+# ---------- watchlist ----------
 
 def add_to_watchlist(user_id: int, ticker: str):
     with _connect() as conn:
