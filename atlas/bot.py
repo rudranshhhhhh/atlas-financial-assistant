@@ -73,16 +73,23 @@ def main():
 
     logger.info("Atlas is running.")
 
-    port = int(os.environ.get("PORT", 8443))
-    external_url = os.environ["RENDER_EXTERNAL_URL"]
-    webhook_path = token
+    # If RENDER_EXTERNAL_URL is set, run in webhook mode; otherwise fall back to polling.
+    external_url = os.environ.get("RENDER_EXTERNAL_URL")
+    if external_url:
+        port = int(os.environ.get("PORT", 8443))
+        webhook_path = token
 
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=port,
-        url_path=webhook_path,
-        webhook_url=f"{external_url}/{webhook_path}",
-    )
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=port,
+            url_path=webhook_path,
+            webhook_url=f"{external_url}/{webhook_path}",
+        )
+    else:
+        logger.warning(
+            "RENDER_EXTERNAL_URL not set — falling back to polling mode. Set RENDER_EXTERNAL_URL to enable webhook mode."
+        )
+        app.run_polling()
 
 
 if __name__ == "__main__":
